@@ -46,5 +46,3 @@
 5.实验结论
 
 在实际应用中，如果追求高精度的预测，RandomForest、GradientBoosting 等集成学习模型可以作为首选。同时，经过优化后的 SVR 和 Lasso 模型也表现出了良好的性能，可以根据具体情况进行选择。
-
->>>>>>> origin/master
