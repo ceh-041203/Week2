@@ -143,6 +143,7 @@ for i, v in enumerate(results_df['High Price R2']):
 
 plt.tight_layout()
 plt.show()
+print("原始模型效果：")
 print(results_df)
 print('_______________________________________________')
 
@@ -206,3 +207,31 @@ results_df = pd.DataFrame(results).T
 print("部分优化后模型效果：")
 print(results_df)
 print('_______________________________________________')
+
+#实验结果整合
+import pandas as pd
+# 原始模型数据
+original_data = {
+    'Low Price MSE': [4625.54, 480.89, 887.42, 1327.28, 2442.64, 1098.85],
+    'High Price MSE': [5324.04, 500.54, 920.18, 1440.86, 2592.12, 1168.32],
+    'Low Price R2': [0.3787, 0.9354, 0.8808, 0.8217, 0.6719, 0.8524],
+    'High Price R2': [0.3758, 0.9413, 0.8921, 0.8311, 0.6961, 0.8630]
+}
+original_models = ['SVR', 'RandomForest', 'GradientBoosting', 'Ridge', 'Lasso', 'KNN']
+original_df = pd.DataFrame(original_data, index=original_models)
+# 优化后模型数据
+optimized_data = {
+    'Low Price MSE': [1764.77, 1280.98],
+    'High Price MSE': [1971.82, 1393.48],
+    'Low Price R2': [0.7630, 0.8280],
+    'High Price R2': [0.7688, 0.8366]
+}
+
+optimized_models = ['SVR-2', 'Lasso-2']
+optimized_df = pd.DataFrame(optimized_data, index=optimized_models)
+
+# 合并数据
+combined_df = pd.concat([original_df, optimized_df])
+
+print("原始模型与优化后模型效果对比：")
+print(combined_df.round(4))
