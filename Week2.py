@@ -33,3 +33,4 @@ for col in numeric_cols:
 print('数据预处理后各列缺失值数')
 missing_values = df.isnull().sum()
 print(missing_values)
+print('_______________________________________________')
