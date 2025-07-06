@@ -145,3 +145,64 @@ plt.tight_layout()
 plt.show()
 print(results_df)
 print('_______________________________________________')
+
+#部分模型优化
+import warnings
+from sklearn.linear_model._cd_fast import ConvergenceWarning
+# 忽略特定的收敛警告
+warnings.filterwarnings("ignore", category=ConvergenceWarning, module="sklearn.linear_model._coordinate_descent")
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import Lasso
+from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error, r2_score
+import pandas as pd
+
+# 定义要优化的模型及其参数网格
+models_params = {
+    'SVR': (SVR(), {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf', 'poly'],
+        'gamma': ['scale', 'auto']
+    }),
+    'Lasso': (Lasso(random_state=42), {
+        'alpha': [0.001, 0.01, 0.1, 1]
+    })
+}
+
+# 用于存储每个模型的评估结果
+results = {}
+
+for model_name, (model, param_grid) in models_params.items():
+    # 使用网格搜索进行超参数调优
+    grid_search = GridSearchCV(model, param_grid, cv=5, scoring='r2')
+    # 训练最低价格预测模型
+    grid_search.fit(X_train, y_low_train)
+    best_model_low = grid_search.best_estimator_
+    y_low_pred = best_model_low.predict(X_test)
+
+    # 训练最高价格预测模型
+    grid_search.fit(X_train, y_high_train)
+    best_model_high = grid_search.best_estimator_
+    y_high_pred = best_model_high.predict(X_test)
+
+    # 计算评估指标
+    mse_low = mean_squared_error(y_low_test, y_low_pred)
+    mse_high = mean_squared_error(y_high_test, y_high_pred)
+    r2_low = r2_score(y_low_test, y_low_pred)
+    r2_high = r2_score(y_high_test, y_high_pred)
+
+    # 存储结果
+    results[model_name] = {
+        'Low Price MSE': mse_low,
+        'High Price MSE': mse_high,
+        'Low Price R2': r2_low,
+        'High Price R2': r2_high
+    }
+
+
+results_df = pd.DataFrame(results).T
+
+print("部分优化后模型效果：")
+print(results_df)
+print('_______________________________________________')
