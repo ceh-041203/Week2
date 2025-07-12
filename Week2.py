@@ -152,7 +152,7 @@ axes[1, 0].set_title('最低价格 R2 分数')
 axes[1, 0].set_xlabel('模型')
 axes[1, 0].set_ylabel('R2 分数')
 
-# 为最低价格 R2 分数柱状图添加数值标签
+# 为最低价格 R2分数柱状图添加数值标签
 for i, v in enumerate(results_df['Low Price R2']):
     axes[1, 0].text(i, v, str(round(v, 2)), ha='center', va='bottom')
 
