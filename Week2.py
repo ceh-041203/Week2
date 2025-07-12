@@ -156,7 +156,7 @@ axes[1, 0].set_ylabel('R2 分数')
 for i, v in enumerate(results_df['Low Price R2']):
     axes[1, 0].text(i, v, str(round(v, 2)), ha='center', va='bottom')
 
-# 绘制最高价格 R2 分数柱状图
+# 绘制最高价格 R2分数柱状图
 axes[1, 1].bar(results_df.index, results_df['High Price R2'])
 axes[1, 1].set_title('最高价格 R2 分数')
 axes[1, 1].set_xlabel('模型')
