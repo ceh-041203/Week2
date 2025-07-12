@@ -162,7 +162,7 @@ axes[1, 1].set_title('最高价格 R2 分数')
 axes[1, 1].set_xlabel('模型')
 axes[1, 1].set_ylabel('R2 分数')
 
-# 为最高价格 R2 分数柱状图添加数值标签
+# 为最高价格 R2分数柱状图添加数值标签
 for i, v in enumerate(results_df['High Price R2']):
     axes[1, 1].text(i, v, str(round(v, 2)), ha='center', va='bottom')
 
