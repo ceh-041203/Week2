@@ -36,14 +36,17 @@ missing_values = df.isnull().sum()
 print(missing_values)
 print('_______________________________________________')
 
-#预测建模
-from sklearn.model_selection import train_test_split
+# 预测建模
+from sklearn.model_selection import train_test_split, GridSearchCV
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+import warnings
+# 忽略收敛警告
+warnings.filterwarnings("ignore", category=Warning)
 
 # 对字符型特征进行独热编码
 X = pd.get_dummies(df[['City Name', 'Package', 'Variety', 'Date', 'Origin', 'Item Size', 'Color', 'Repack']])
@@ -53,31 +56,53 @@ y_low = df['Low Price']
 y_high = df['High Price']
 
 # 划分训练集和测试集
-X_train, X_test, y_low_train, y_low_test, y_high_train, y_high_test = train_test_split(X, y_low, y_high,
-                                                                                       test_size=0.2,
-                                                                                       random_state=42)
+X_train, X_test, y_low_train, y_low_test, y_high_train, y_high_test = train_test_split(
+    X, y_low, y_high, test_size=0.2, random_state=42)
 
-# 定义模型
-models = {
-    'SVR': SVR(),
-    'RandomForest': RandomForestRegressor(random_state=42),
-    'GradientBoosting': GradientBoostingRegressor(random_state=42),
-    'Ridge': Ridge(random_state=42),
-    'Lasso': Lasso(random_state=42),
-    'KNN': KNeighborsRegressor()
+# 定义模型及其参数网格
+models_params = {
+    'SVR': (SVR(), {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf', 'poly'],
+        'gamma': ['scale', 'auto']
+    }),
+    'RandomForest': (RandomForestRegressor(random_state=42), {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [None, 10, 20]
+    }),
+    'GradientBoosting': (GradientBoostingRegressor(random_state=42), {
+        'n_estimators': [50, 100, 200],
+        'learning_rate': [0.01, 0.1, 0.2],
+        'max_depth': [3, 4, 5]
+    }),
+    'Ridge': (Ridge(random_state=42), {
+        'alpha': [0.001, 0.01, 0.1, 1]
+    }),
+    'Lasso': (Lasso(random_state=42), {
+        'alpha': [0.001, 0.01, 0.1, 1]
+    }),
+    'KNN': (KNeighborsRegressor(), {
+        'n_neighbors': [3, 5, 7],
+        'weights': ['uniform', 'distance']
+    })
 }
 
 # 用于存储每个模型的评估结果
 results = {}
 
-for model_name, model in models.items():
+for model_name, (model, param_grid) in models_params.items():
+    # 使用网格搜索进行超参数调优
+    grid_search = GridSearchCV(model, param_grid, cv=5, scoring='neg_mean_squared_error')
+
     # 训练最低价格预测模型
-    model.fit(X_train, y_low_train)
-    y_low_pred = model.predict(X_test)
+    grid_search.fit(X_train, y_low_train)
+    best_model_low = grid_search.best_estimator_
+    y_low_pred = best_model_low.predict(X_test)
 
     # 训练最高价格预测模型
-    model.fit(X_train, y_high_train)
-    y_high_pred = model.predict(X_test)
+    grid_search.fit(X_train, y_high_train)
+    best_model_high = grid_search.best_estimator_
+    y_high_pred = best_model_high.predict(X_test)
 
     # 计算评估指标
     mse_low = mean_squared_error(y_low_test, y_low_pred)
@@ -143,95 +168,6 @@ for i, v in enumerate(results_df['High Price R2']):
 
 plt.tight_layout()
 plt.show()
-print("原始模型效果：")
-print(results_df)
-print('_______________________________________________')
 
-#部分模型优化
-import warnings
-from sklearn.linear_model._cd_fast import ConvergenceWarning
-# 忽略特定的收敛警告
-warnings.filterwarnings("ignore", category=ConvergenceWarning, module="sklearn.linear_model._coordinate_descent")
-
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import Lasso
-from sklearn.svm import SVR
-from sklearn.metrics import mean_squared_error, r2_score
-import pandas as pd
-
-# 定义要优化的模型及其参数网格
-models_params = {
-    'SVR': (SVR(), {
-        'C': [0.1, 1, 10],
-        'kernel': ['linear', 'rbf', 'poly'],
-        'gamma': ['scale', 'auto']
-    }),
-    'Lasso': (Lasso(random_state=42), {
-        'alpha': [0.001, 0.01, 0.1, 1]
-    })
-}
-
-# 用于存储每个模型的评估结果
-results = {}
-
-for model_name, (model, param_grid) in models_params.items():
-    # 使用网格搜索进行超参数调优
-    grid_search = GridSearchCV(model, param_grid, cv=5, scoring='r2')
-    # 训练最低价格预测模型
-    grid_search.fit(X_train, y_low_train)
-    best_model_low = grid_search.best_estimator_
-    y_low_pred = best_model_low.predict(X_test)
-
-    # 训练最高价格预测模型
-    grid_search.fit(X_train, y_high_train)
-    best_model_high = grid_search.best_estimator_
-    y_high_pred = best_model_high.predict(X_test)
-
-    # 计算评估指标
-    mse_low = mean_squared_error(y_low_test, y_low_pred)
-    mse_high = mean_squared_error(y_high_test, y_high_pred)
-    r2_low = r2_score(y_low_test, y_low_pred)
-    r2_high = r2_score(y_high_test, y_high_pred)
-
-    # 存储结果
-    results[model_name] = {
-        'Low Price MSE': mse_low,
-        'High Price MSE': mse_high,
-        'Low Price R2': r2_low,
-        'High Price R2': r2_high
-    }
-
-
-results_df = pd.DataFrame(results).T
-
-print("部分优化后模型效果：")
-print(results_df)
-print('_______________________________________________')
-
-#实验结果整合
-import pandas as pd
-# 原始模型数据
-original_data = {
-    'Low Price MSE': [4625.54, 480.89, 887.42, 1327.28, 2442.64, 1098.85],
-    'High Price MSE': [5324.04, 500.54, 920.18, 1440.86, 2592.12, 1168.32],
-    'Low Price R2': [0.3787, 0.9354, 0.8808, 0.8217, 0.6719, 0.8524],
-    'High Price R2': [0.3758, 0.9413, 0.8921, 0.8311, 0.6961, 0.8630]
-}
-original_models = ['SVR', 'RandomForest', 'GradientBoosting', 'Ridge', 'Lasso', 'KNN']
-original_df = pd.DataFrame(original_data, index=original_models)
-# 优化后模型数据
-optimized_data = {
-    'Low Price MSE': [1764.77, 1280.98],
-    'High Price MSE': [1971.82, 1393.48],
-    'Low Price R2': [0.7630, 0.8280],
-    'High Price R2': [0.7688, 0.8366]
-}
-
-optimized_models = ['SVR-2', 'Lasso-2']
-optimized_df = pd.DataFrame(optimized_data, index=optimized_models)
-
-# 合并数据
-combined_df = pd.concat([original_df, optimized_df])
-
-print("原始模型与优化后模型效果对比：")
-print(combined_df.round(4))
+print("二次优化后模型效果：")
+print(results_df.round(4))
