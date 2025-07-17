@@ -10,7 +10,7 @@ from sklearn.base import clone
 import xgboost as xgb
 import lightgbm as lgb
 # 随机森林模型自定义参数优化
-def optimize_random_forest_custom(X_train, y_train, X_test, y_test, price_type="Low Price"):
+def optimize_random_forest_custom(X_train, y_train, X_test, y_test, X, y, price_type="Low Price", cv_folds=5):
     print(f"\n===== 开始{price_type}随机森林自定义参数优化 =====")
 
     # 自定义参数组合
@@ -21,58 +21,94 @@ def optimize_random_forest_custom(X_train, y_train, X_test, y_test, price_type="
          'min_samples_leaf': 4}
     ]
 
-    best_score = -np.inf  # 用于跟踪最佳R²分数
+    best_score = -np.inf  # 跟踪最佳R²分数
     best_model = None
     best_params = None
     results = []
+    cv_results = None  # 存储最佳模型的交叉验证结果
 
-    # 遍历参数组合并评估
+    # 定义交叉验证折（与原始模型保持一致）
+    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+
     for i, params in enumerate(param_combinations, 1):
         print(f"\n测试参数组合 {i}/{len(param_combinations)}: {params}")
 
-        # 使用当前参数创建模型
-        rf = RandomForestRegressor(
-            n_estimators=params['n_estimators'],
-            max_depth=params['max_depth'],
-            min_samples_split=params['min_samples_split'],
-            min_samples_leaf=params['min_samples_leaf'],
-            random_state=42,
-            n_jobs=-1
-        )
+        # 交叉验证评估
+        fold_metrics = {
+            'train_size': [],
+            'val_size': [],
+            'mse': [],
+            'r2': []
+        }
 
-        # 训练模型
-        rf.fit(X_train, y_train)
+        for fold, (train_idx, val_idx) in enumerate(kf.split(X, y), 1):
+            X_train_fold = X.iloc[train_idx]
+            y_train_fold = y.iloc[train_idx]
+            X_val_fold = X.iloc[val_idx]
+            y_val_fold = y.iloc[val_idx]
 
-        # 预测并评估
-        y_pred = rf.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
+            # 记录样本量
+            fold_metrics['train_size'].append(len(train_idx))
+            fold_metrics['val_size'].append(len(val_idx))
+
+            # 训练模型
+            rf = RandomForestRegressor(
+                n_estimators=params['n_estimators'],
+                max_depth=params['max_depth'],
+                min_samples_split=params['min_samples_split'],
+                min_samples_leaf=params['min_samples_leaf'],
+                random_state=42,
+                n_jobs=-1
+            )
+            rf.fit(X_train_fold, y_train_fold)
+
+            # 验证集评估
+            y_pred = rf.predict(X_val_fold)
+            mse = mean_squared_error(y_val_fold, y_pred)
+            r2 = r2_score(y_val_fold, y_pred)
+            fold_metrics['mse'].append(mse)
+            fold_metrics['r2'].append(r2)
+            print(f"  折 {fold}: 训练样本={len(train_idx)}, 验证样本={len(val_idx)}, MSE={mse:.4f}, R²={r2:.4f}")
+
+        # 测试集评估（使用最佳参数的全量训练）
+        rf_full = RandomForestRegressor(**params, random_state=42, n_jobs=-1)
+        rf_full.fit(X_train, y_train)
+        y_pred_test = rf_full.predict(X_test)
+        test_mse = mean_squared_error(y_test, y_pred_test)
+        test_r2 = r2_score(y_test, y_pred_test)
 
         # 存储结果
         results.append({
             'params': params,
-            'MSE': mse,
-            'R²': r2
+            'cv_mse': fold_metrics['mse'],
+            'cv_r2': fold_metrics['r2'],
+            'cv_train_size': fold_metrics['train_size'],
+            'cv_val_size': fold_metrics['val_size'],
+            'test_mse': test_mse,
+            'test_r2': test_r2
         })
 
-        print(f"  评估结果: MSE = {mse:.4f}, R² = {r2:.4f}")
+        print(f"\n  参数组合测试集评估: MSE = {test_mse:.4f}, R² = {test_r2:.4f}")
 
-        # 更新最佳模型（基于R²指标）
-        if r2 > best_score:
-            best_score = r2
-            best_model = rf
+        # 更新最佳模型
+        if test_r2 > best_score:
+            best_score = test_r2
+            best_model = rf_full
             best_params = params
+            cv_results = fold_metrics  # 保存最佳模型的交叉验证结果
 
     # 输出最佳参数
     print(f"\n{price_type}最佳参数组合: {best_params}")
+    print(f"{price_type}最佳模型交叉验证平均MSE: {np.mean(cv_results['mse']):.4f}")
+    print(f"{price_type}最佳模型交叉验证平均R²: {np.mean(cv_results['r2']):.4f}")
     print(
-        f"{price_type}最佳模型评估: MSE = {results[[res['params'] == best_params for res in results].index(True)]['MSE']:.4f}, "
-        f"R² = {best_score:.4f}")
+        f"{price_type}最佳模型测试集MSE: {results[[res['params'] == best_params for res in results].index(True)]['test_mse']:.4f}")
+    print(f"{price_type}最佳模型测试集R²: {best_score:.4f}")
 
-    return best_model, best_params, {
-        'MSE': results[[res['params'] == best_params for res in results].index(True)]['MSE'],
-        'R²': best_score
-    }
+    return (best_model, best_params,
+            {'MSE': results[[res['params'] == best_params for res in results].index(True)]['test_mse'],
+             'R²': best_score},
+            cv_results)  # 返回交叉验证结果
 
 
 # 训练多个原始模型（双目标预测）

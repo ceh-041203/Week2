@@ -32,18 +32,30 @@ def main():
     # 记录测试集样本量
     fold_sizes['test_size'] = len(X_test)
 
-    # 优化随机森林
+    # 优化随机森林（添加交叉验证）
     optimized_models = {}
     optimized_results = {}
-    opt_rf_low, low_params, low_metrics = optimize_random_forest_custom(X_train, y_low_train, X_test, y_low_test,
-                                                                        "Low Price")
+    optimized_cv_results = {}  # 存储优化模型的交叉验证结果
+
+    # 优化最低价格模型（传入完整X和y用于交叉验证）
+    opt_rf_low, low_params, low_metrics, low_cv = optimize_random_forest_custom(
+        X_train, y_low_train, X_test, y_low_test,
+        X, y_low,  # 完整数据集用于交叉验证
+        price_type="Low Price"
+    )
     optimized_models['Optimized_RandomForest_LowPrice'] = opt_rf_low
     optimized_results['Low Price'] = low_metrics
+    optimized_cv_results['Low Price'] = low_cv  # 保存交叉验证结果
 
-    opt_rf_high, high_params, high_metrics = optimize_random_forest_custom(X_train, y_high_train, X_test, y_high_test,
-                                                                           "High Price")
+    # 优化最高价格模型
+    opt_rf_high, high_params, high_metrics, high_cv = optimize_random_forest_custom(
+        X_train, y_high_train, X_test, y_high_test,
+        X, y_high,  # 完整数据集用于交叉验证
+        price_type="High Price"
+    )
     optimized_models['Optimized_RandomForest_HighPrice'] = opt_rf_high
     optimized_results['High Price'] = high_metrics
+    optimized_cv_results['High Price'] = high_cv  # 保存交叉验证结果
 
     trained_models.update(optimized_models)
 
@@ -114,7 +126,7 @@ def main():
 
     # 保存实验结果（包含折样本量）
     save_experiment_results(results, original_hyperparams, optimized_results,
-                            low_params, high_params, fold_sizes, output_dir)
+                            low_params, high_params, fold_sizes, output_dir, optimized_cv_results)
 
     print("\n所有模型预测结果和实验结果保存完成！")
 
