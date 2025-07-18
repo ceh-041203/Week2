@@ -80,13 +80,14 @@
     
     `min_samples_split`/`min_samples_leaf`：控制节点分裂条件，避免过拟合。
   优化效果：调参后的随机森林在测试集R²虽然有所降低，但通过打印决策树可发现模型在实际应用中的可应用型更强。
+  
 4. 模型性能对比
 
   最佳模型分析：
   
-    最低价格（Low Price）：XGBoost模型表现最优，R²最高且MSE最低；
+	最低价格（Low Price）：XGBoost模型表现最优，R²最高且MSE最低；
     
-    最高价格（High Price）：XGBoost模型表现最优，树模型整体优于线性模型（如Ridge、Lasso）。
+	最高价格（High Price）：XGBoost模型表现最优，树模型整体优于线性模型（如Ridge、Lasso）。
     
   树模型优势：通过`plot_tree`可视化决策树，可直观解释特征对价格的影响（如`Package`规格直接决定价格区间），线性模型则难以捕捉非线性关系。
   
